@@ -515,6 +515,8 @@ def analyze_video_enhanced(uploaded_file):
                 "Evaluating behavioral cues",
                 "Measuring physical condition",
                 "Detecting estrus behaviors",
+                "Checking for distress signs",
+                "Identifying low fertility patterns",
                 "Computing fertility scores", 
                 "Generating comprehensive report"
             ]
@@ -536,6 +538,8 @@ def analyze_video_enhanced(uploaded_file):
                 frame_data = result['frame_data']
                 feature_analysis = result.get('feature_analysis', {})
                 detailed_features = result.get('detailed_features', [])
+                distress_indicators = result.get('distress_indicators', [])
+                low_fertility_patterns = result.get('low_fertility_patterns', [])
                 
                 # Beautiful results display
                 st.markdown("---")
@@ -546,6 +550,14 @@ def analyze_video_enhanced(uploaded_file):
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # Health alert section
+                if distress_indicators or low_fertility_patterns:
+                    st.markdown("### ⚠️ Health & Welfare Alerts")
+                    if distress_indicators:
+                        st.error(f"🚨 Distress Indicators Detected: {len(distress_indicators)} instances found")
+                    if low_fertility_patterns:
+                        st.warning(f"🟡 Low Fertility Patterns: {len(low_fertility_patterns)} patterns identified")
+                
                 # Enhanced results dashboard
                 st.markdown("### 📊 Comprehensive Fertility Assessment")
                 
@@ -553,18 +565,35 @@ def analyze_video_enhanced(uploaded_file):
                 col1, col2, col3 = st.columns([3, 4, 3], gap="medium")
                 
                 with col1:
-                    fertility_color = "#ff6b6b" if fertility_score > st.session_state.fertility_threshold else "#4ecdc4"
+                    # Determine color based on fertility and health status
+                    if distress_indicators:
+                        fertility_color = "#ff6b6b"  # Red for distress
+                    elif fertility_score > st.session_state.fertility_threshold:
+                        fertility_color = "#ff6b6b"  # Red for high fertility
+                    elif fertility_score > st.session_state.fertility_threshold - 10:
+                        fertility_color = "#ffd93d"  # Yellow for caution
+                    else:
+                        fertility_color = "#4ecdc4"   # Green for normal/low
+                    
                     st.markdown(f"""
                     <div style="background: {fertility_color}; padding: 1.5rem; border-radius: 15px; color: white; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.1); height: 100%;">
                         <h3>🎯 Overall Fertility</h3>
                         <h1 style="font-size: 2.5rem; margin: 0.5rem 0;">{fertility_score:.1f}%</h1>
-                        <p style="font-size: 1rem;">{'🔴 HIGH FERTILITY' if fertility_score > st.session_state.fertility_threshold else '🟢 NORMAL LEVEL'}</p>
+                        <p style="font-size: 1rem;">{'🔴 HIGH FERTILITY' if fertility_score > st.session_state.fertility_threshold else '🟡 CAUTION' if fertility_score > st.session_state.fertility_threshold - 10 else '🟢 NORMAL LEVEL'}</p>
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col2:
+                    # Determine recommendation card color based on health status
+                    if distress_indicators:
+                        rec_color = "linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)"  # Red gradient for distress
+                    elif low_fertility_patterns:
+                        rec_color = "linear-gradient(135deg, #ffd93d 0%, #ff9a00 100%)"   # Yellow gradient for concerns
+                    else:
+                        rec_color = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"   # Blue gradient for normal
+                    
                     st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 15px; color: white; text-align: center; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2); height: 100%;">
+                    <div style="background: {rec_color}; padding: 1.5rem; border-radius: 15px; color: white; text-align: center; box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2); height: 100%;">
                         <h3>📋 Veterinary Recommendation</h3>
                         <p style="font-size: 1rem; margin-top: 1rem; line-height: 1.6;">{recommendation}</p>
                     </div>
@@ -582,14 +611,58 @@ def analyze_video_enhanced(uploaded_file):
                     </div>
                     """, unsafe_allow_html=True)
                 
+                # Health indicators section
+                if distress_indicators or low_fertility_patterns:
+                    st.markdown("### 🏥 Health & Welfare Indicators")
+                    health_col1, health_col2 = st.columns(2, gap="medium")
+                    
+                    with health_col1:
+                        if distress_indicators:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>🚨 Distress Indicators</h4>
+                                <h2 style="color: #ff6b6b;">{len(distress_indicators)}</h2>
+                                <p>Instances detected</p>
+                                {f"<p><strong>Peak Score:</strong> {max([d['score'] for d in distress_indicators]):.1f}%</p>" if distress_indicators else ""}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>✅ No Distress</h4>
+                                <h2 style="color: #4ecdc4;">0</h2>
+                                <p>No signs of distress</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    with health_col2:
+                        if low_fertility_patterns:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>🟡 Low Fertility Patterns</h4>
+                                <h2 style="color: #ffd93d;">{len(low_fertility_patterns)}</h2>
+                                <p>Patterns identified</p>
+                                {f"<p><strong>Peak Score:</strong> {max([d['score'] for d in low_fertility_patterns]):.1f}%</p>" if low_fertility_patterns else ""}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h4>✅ Normal Patterns</h4>
+                                <h2 style="color: #4ecdc4;">0</h2>
+                                <p>Healthy patterns observed</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                
                 # Multi-feature analysis breakdown
                 if feature_analysis:
                     st.markdown("### 🔬 Multi-Feature Analysis Breakdown")
                     
                     # Feature weights explanation
-                    st.info("ℹ️ Feature weights: Behavior (25%), Estrus (20%), Physical (20%), Motion (20%), Posture (15%)")
+                    st.info("ℹ️ Feature weights: Behavior (25%), Estrus (20%), Physical (15%), Distress Inverse (10%), Motion (15%), Low Fertility Inverse (5%), Posture (10%)")
                     
-                    feature_col1, feature_col2, feature_col3, feature_col4, feature_col5 = st.columns(5, gap="small")
+                    # Create feature grid
+                    feature_col1, feature_col2, feature_col3, feature_col4 = st.columns(4, gap="small")
                     
                     with feature_col1:
                         motion_score = feature_analysis.get('motion', 0)
@@ -631,6 +704,9 @@ def analyze_video_enhanced(uploaded_file):
                         </div>
                         """, unsafe_allow_html=True)
                     
+                    # Second row of features
+                    feature_col5, feature_col6, feature_col7, feature_col8 = st.columns(4, gap="small")
+                    
                     with feature_col5:
                         estrus_score = feature_analysis.get('estrus_behavior', 0)
                         st.markdown(f"""
@@ -640,17 +716,68 @@ def analyze_video_enhanced(uploaded_file):
                             <p>Heat Indicators</p>
                         </div>
                         """, unsafe_allow_html=True)
+                    
+                    with feature_col6:
+                        distress_score = feature_analysis.get('distress_indicators', 0)
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <h4>⚠️ Distress</h4>
+                            <h2 style="color: {'#ff6b6b' if distress_score > 70 else '#ffd93d' if distress_score > 50 else '#4ecdc4'};">{distress_score:.1f}%</h2>
+                            <p>Health Concerns</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with feature_col7:
+                        low_fertility_score = feature_analysis.get('low_fertility_patterns', 0)
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <h4>📉 Low Fertility</h4>
+                            <h2 style="color: {'#ff6b6b' if low_fertility_score > 70 else '#ffd93d' if low_fertility_score > 50 else '#4ecdc4'};">{low_fertility_score:.1f}%</h2>
+                            <p>Fertility Issues</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with feature_col8:
+                        # Overall health score (inverse of distress and low fertility)
+                        health_score = 100 - ((distress_score + low_fertility_score) / 2)
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <h4>❤️ Health Index</h4>
+                            <h2 style="color: {'#ff6b6b' if health_score < 30 else '#ffd93d' if health_score < 70 else '#4ecdc4'};">{health_score:.1f}%</h2>
+                            <p>Overall Health</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                 
                 # Alert section with improved styling
                 st.markdown("---")
-                if fertility_score > st.session_state.fertility_threshold:
+                if distress_indicators:
+                    st.markdown(f"""
+                    <div class="alert-high">
+                        <h2>🚨 ANIMAL HEALTH ALERT!</h2>
+                        <h3>Distress Indicators Detected</h3>
+                        <p><strong>Findings:</strong> {len(distress_indicators)} instances of potential distress behavior identified</p>
+                        <p><strong>Recommendation:</strong> {recommendation}</p>
+                        <p>📞 Contact veterinarian immediately for health assessment</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif low_fertility_patterns and fertility_score < 60:
+                    st.markdown(f"""
+                    <div class="alert-normal">
+                        <h2>⚠️ LOW FERTILITY ALERT</h2>
+                        <h3>Potential Fertility Issues Detected</h3>
+                        <p><strong>Findings:</strong> {len(low_fertility_patterns)} low fertility patterns identified</p>
+                        <p><strong>Recommendation:</strong> {recommendation}</p>
+                        <p>📊 Continue monitoring and consider veterinary consultation</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif fertility_score > st.session_state.fertility_threshold:
                     st.markdown("""
                     <div class="alert-high">
                         <h2>🚨 HIGH FERTILITY ALERT!</h2>
-                        <h3>Immediate Action Required</h3>
+                        <h3>Optimal Breeding Window</h3>
                         <p><strong>Recommendation:</strong> Inseminate within 12-24 hours for optimal results</p>
-                        <p>📧 Email notification sent to veterinarian@example.com</p>
-                        <p>📱 SMS alert sent to farm manager</p>
+                        <p>📧 Breeding notification sent to farm manager</p>
+                        <p>📱 SMS alert sent to veterinarian</p>
                     </div>
                     """, unsafe_allow_html=True)
                     st.balloons()
@@ -665,7 +792,7 @@ def analyze_video_enhanced(uploaded_file):
                 else:
                     st.markdown("""
                     <div class="alert-normal">
-                        <h2>✅ Normal Fertility Level</h2>
+                        <h2>✅ Analysis Complete - Normal Findings</h2>
                         <p><strong>Recommendation:</strong> Continue regular monitoring every 12-24 hours</p>
                         <p>📊 Results saved to your history for tracking trends</p>
                     </div>
@@ -730,6 +857,27 @@ def analyze_video_enhanced(uploaded_file):
                             annotation_text=f"Alert Threshold ({st.session_state.fertility_threshold}%)"
                         )
                         
+                        # Add distress and low fertility indicators if significant
+                        if df['distress_score'].max() > 50:
+                            fig.add_trace(go.Scatter(
+                                x=df['timestamp'],
+                                y=df['distress_score'],
+                                mode='lines',
+                                name='Distress Indicators',
+                                line=dict(color='#ff6b6b', width=2, dash='dash'),
+                                hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>Distress:</b> %{y:.1f}%<extra></extra>'
+                            ))
+                        
+                        if df['low_fertility_score'].max() > 50:
+                            fig.add_trace(go.Scatter(
+                                x=df['timestamp'],
+                                y=df['low_fertility_score'],
+                                mode='lines',
+                                name='Low Fertility Patterns',
+                                line=dict(color='#ffd93d', width=2, dash='dash'),
+                                hovertemplate='<b>Time:</b> %{x:.1f}s<br><b>Low Fertility:</b> %{y:.1f}%<extra></extra>'
+                            ))
+                        
                         # Highlight high fertility zones
                         high_fertility_points = df[df['fertility_score'] > st.session_state.fertility_threshold]
                         if not high_fertility_points.empty:
@@ -758,13 +906,15 @@ def analyze_video_enhanced(uploaded_file):
                     with chart_tab2:
                         # Feature comparison chart
                         feature_data = {
-                            'Feature': ['Motion', 'Posture', 'Behavior', 'Physical', 'Estrus'],
+                            'Feature': ['Motion', 'Posture', 'Behavior', 'Physical', 'Estrus', 'Distress', 'Low Fertility'],
                             'Score': [
                                 feature_analysis.get('motion', 0),
                                 feature_analysis.get('posture', 0),
                                 feature_analysis.get('behavior', 0),
                                 feature_analysis.get('physical_condition', 0),
-                                feature_analysis.get('estrus_behavior', 0)
+                                feature_analysis.get('estrus_behavior', 0),
+                                feature_analysis.get('distress_indicators', 0),
+                                feature_analysis.get('low_fertility_patterns', 0)
                             ]
                         }
                         feature_df = pd.DataFrame(feature_data)
@@ -787,8 +937,8 @@ def analyze_video_enhanced(uploaded_file):
                         
                         # Show feature weights
                         weights_data = {
-                            'Feature': ['Behavior', 'Estrus', 'Physical', 'Motion', 'Posture'],
-                            'Weight (%)': [25, 20, 20, 20, 15]
+                            'Feature': ['Behavior', 'Estrus', 'Physical', 'Distress Inverse', 'Motion', 'Low Fertility Inverse', 'Posture'],
+                            'Weight (%)': [25, 20, 15, 10, 15, 5, 10]
                         }
                         weights_df = pd.DataFrame(weights_data)
                         
@@ -814,7 +964,8 @@ def analyze_video_enhanced(uploaded_file):
                             st.metric("📊 Range", f"{range_val:.1f}%")
                         
                         # Correlation matrix
-                        corr_data = df[['motion_score', 'posture_score', 'behavior_score', 'physical_score', 'estrus_score', 'fertility_score']]
+                        corr_features = ['motion_score', 'posture_score', 'behavior_score', 'physical_score', 'estrus_score', 'distress_score', 'low_fertility_score', 'fertility_score']
+                        corr_data = df[corr_features]
                         corr_matrix = corr_data.corr()
                         
                         st.markdown("#### 🔗 Feature Correlation Matrix")
@@ -878,7 +1029,11 @@ def analyze_video_enhanced(uploaded_file):
                             'Posture Score': f"{feature_analysis.get('posture', 0):.1f}%",
                             'Behavior Score': f"{feature_analysis.get('behavior', 0):.1f}%",
                             'Physical Score': f"{feature_analysis.get('physical_condition', 0):.1f}%",
-                            'Estrus Score': f"{feature_analysis.get('estrus_behavior', 0):.1f}%"
+                            'Estrus Score': f"{feature_analysis.get('estrus_behavior', 0):.1f}%",
+                            'Distress Indicators': f"{feature_analysis.get('distress_indicators', 0):.1f}%",
+                            'Low Fertility Patterns': f"{feature_analysis.get('low_fertility_patterns', 0):.1f}%",
+                            'Distress Events': len(distress_indicators),
+                            'Low Fertility Events': len(low_fertility_patterns)
                         }
                         report_df = pd.DataFrame(list(report_data.items()), columns=['Metric', 'Value'])
                         csv_report = report_df.to_csv(index=False)
