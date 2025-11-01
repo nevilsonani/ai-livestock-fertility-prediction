@@ -1,7 +1,14 @@
 import streamlit as st
 import json
 import os
-import cv2
+
+# Handle OpenCV import gracefully
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+    st.warning("OpenCV not available. Video analysis features will be limited.")
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -489,6 +496,11 @@ def show_video_analysis_tab():
 
 def analyze_video_enhanced(uploaded_file):
     """Enhanced video analysis with beautiful results"""
+    
+    # Check if OpenCV is available
+    if cv2 is None:
+        st.error("❌ OpenCV is not available in this environment. Video analysis cannot be performed.")
+        return
     
     # Progress section
     st.markdown("---")

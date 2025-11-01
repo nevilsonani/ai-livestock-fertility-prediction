@@ -1,4 +1,9 @@
-import cv2
+# Handle OpenCV import gracefully
+try:
+    import cv2
+except ImportError:
+    cv2 = None
+
 import numpy as np
 import json
 import os
@@ -14,6 +19,10 @@ def analyze_video(video_path):
     Enhanced implementation with distress detection and improved low fertility analysis
     """
     try:
+        # Check if OpenCV is available
+        if cv2 is None:
+            return None
+        
         # Create a deterministic seed based on video content for consistent results
         video_hash = get_video_hash(video_path)
         random.seed(video_hash)
