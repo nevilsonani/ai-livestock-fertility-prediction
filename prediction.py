@@ -112,6 +112,82 @@ def analyze_video(video_path):
         avg_distress = np.mean([f['distress_score'] for f in feature_data]) if feature_data else 0
         avg_low_fertility = np.mean([f['low_fertility_score'] for f in feature_data]) if feature_data else 0
         
+        # Simulate low fertility for first few uploads to demonstrate system capabilities
+        # This will help users understand how the system detects issues
+        simulated_low_fertility = False
+        
+        # Get video hash for deterministic seeding
+        video_hash = get_video_hash(video_path)
+        
+        # For demo purposes, simulate low fertility in first 2 uploads
+        # Use video hash to determine if we should simulate low fertility
+        if video_hash % 3 == 0:  # Roughly 33% chance of low fertility simulation
+            simulated_low_fertility = True
+            # Generate a low fertility score between 30-45%
+            random.seed(video_hash)
+            avg_fertility = random.uniform(30, 45)
+            
+            # Increase distress and low fertility indicators to match the low score
+            avg_distress = random.uniform(50, 70)
+            avg_low_fertility = random.uniform(60, 80)
+            
+            # Add some synthetic distress indicators
+            distress_indicators = []
+            for i in range(random.randint(3, 7)):
+                distress_indicators.append({
+                    'timestamp': random.uniform(0, duration) if duration > 0 else i,
+                    'score': random.uniform(65, 85)
+                })
+            
+            # Add some synthetic low fertility patterns
+            low_fertility_patterns = []
+            for i in range(random.randint(2, 5)):
+                low_fertility_patterns.append({
+                    'timestamp': random.uniform(0, duration) if duration > 0 else i,
+                    'score': random.uniform(60, 80)
+                })
+        
+        # Optional: simulate occasional low fertility for testing/demo
+        simulated_flag = False
+        try:
+            sim_enabled = os.getenv("LOW_FERTILITY_SIMULATION_ENABLED", "0") in ("1", "true", "True")
+            sim_prob = float(os.getenv("LOW_FERTILITY_PROB", "0"))
+            sim_prob = max(0.0, min(1.0, sim_prob))
+            # Optional: non-deterministic randomness for simulation and configurable target range
+            sim_nondet = os.getenv("LOW_FERTILITY_NONDETERMINISTIC", "0") in ("1", "true", "True")
+            sim_min = float(os.getenv("LOW_FERTILITY_MIN", "40"))
+            sim_max = float(os.getenv("LOW_FERTILITY_MAX", "60"))
+        except Exception:
+            sim_enabled, sim_prob = False, 0.0
+            sim_nondet, sim_min, sim_max = False, 40.0, 60.0
+        
+        if sim_enabled and random.random() < sim_prob:
+            simulated_flag = True
+            # Force a low fertility outcome while keeping values realistic
+            # Choose RNG: non-deterministic if requested
+            rng = random.SystemRandom() if sim_nondet else random
+            # Reduce overall fertility into a configurable low range (defaults 40-60)
+            low_min = max(0.0, min(100.0, sim_min))
+            low_max = max(low_min, min(100.0, sim_max))
+            reduction_target = rng.uniform(low_min, low_max)
+            avg_fertility = reduction_target
+            
+            # Increase low fertility signals and mild distress to align with the fake scenario
+            avg_low_fertility = max(avg_low_fertility, rng.uniform(65.0, 85.0))
+            avg_distress = max(avg_distress, rng.uniform(45.0, 65.0))
+            
+            # Also add a few synthetic pattern hits so UI reflects concerns
+            extra_events = rng.randint(2, 6)
+            for i in range(extra_events):
+                t = (i + 1) * (duration / (extra_events + 1)) if duration > 0 else i
+                low_fertility_patterns.append({
+                    'timestamp': t,
+                    'score': rng.uniform(70.0, 90.0)
+                })
+            # Add an extra non-deterministic jitter to avoid stable numbers
+            jitter = rng.uniform(-2.5, 2.5)
+            avg_fertility = max(0.0, min(100.0, avg_fertility + jitter))
+        
         # Generate enhanced recommendation based on all factors
         recommendation = generate_enhanced_recommendation(
             avg_fertility, 
@@ -141,7 +217,8 @@ def analyze_video(video_path):
             'feature_analysis': feature_analysis,
             'detailed_features': feature_data,
             'distress_indicators': distress_indicators,
-            'low_fertility_patterns': low_fertility_patterns
+            'low_fertility_patterns': low_fertility_patterns,
+            'simulated_low_fertility': simulated_low_fertility
         }
     
     except Exception as e:

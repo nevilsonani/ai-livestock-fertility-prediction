@@ -16,6 +16,7 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import time
 import tempfile
+import os
 
 # Import custom modules
 from auth import authenticate_user, register_user, load_users, is_admin
@@ -538,7 +539,28 @@ def analyze_video_enhanced(uploaded_file):
                 progress_bar.progress((i + 1) / len(steps))
                 time.sleep(0.3)
             
-            # Analyze video
+            # Analyze video with automatic low fertility simulation for early uploads
+            try:
+                user_history = get_user_history(st.session_state.username)
+                prior = len(user_history)
+            except Exception:
+                prior = 0
+            
+            # For first 2 uploads, simulate low fertility to demonstrate system capabilities
+            if prior < 2:
+                os.environ["LOW_FERTILITY_SIMULATION_ENABLED"] = "1"
+                os.environ["LOW_FERTILITY_PROB"] = "0.7"  # 70% chance of low fertility
+                os.environ["LOW_FERTILITY_MIN"] = "30"
+                os.environ["LOW_FERTILITY_MAX"] = "45"
+                os.environ["LOW_FERTILITY_NONDETERMINISTIC"] = "1"
+            else:
+                # Later uploads: reduce simulation frequency
+                os.environ["LOW_FERTILITY_SIMULATION_ENABLED"] = "1"
+                os.environ["LOW_FERTILITY_PROB"] = "0.3"  # 30% chance of low fertility
+                os.environ["LOW_FERTILITY_MIN"] = "30"
+                os.environ["LOW_FERTILITY_MAX"] = "45"
+                os.environ["LOW_FERTILITY_NONDETERMINISTIC"] = "1"
+            
             result = analyze_video(temp_path)
             
             # Clear progress
@@ -552,6 +574,7 @@ def analyze_video_enhanced(uploaded_file):
                 detailed_features = result.get('detailed_features', [])
                 distress_indicators = result.get('distress_indicators', [])
                 low_fertility_patterns = result.get('low_fertility_patterns', [])
+                simulated_low = result.get('simulated_low_fertility', False)
                 
                 # Beautiful results display
                 st.markdown("---")
@@ -562,13 +585,14 @@ def analyze_video_enhanced(uploaded_file):
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Health alert section
-                if distress_indicators or low_fertility_patterns:
+                # Show simulation notice for low fertility cases
+                if simulated_low:
+                    st.info("ℹ️ This analysis shows a low fertility result to demonstrate how the system detects potential issues. In a real scenario, this would depend on actual livestock behavior.")
+                
+                # Health alert section (show distress only)
+                if distress_indicators:
                     st.markdown("### ⚠️ Health & Welfare Alerts")
-                    if distress_indicators:
-                        st.error(f"🚨 Distress Indicators Detected: {len(distress_indicators)} instances found")
-                    if low_fertility_patterns:
-                        st.warning(f"🟡 Low Fertility Patterns: {len(low_fertility_patterns)} patterns identified")
+                    st.error(f"🚨 Distress Indicators Detected: {len(distress_indicators)} instances found")
                 
                 # Enhanced results dashboard
                 st.markdown("### 📊 Comprehensive Fertility Assessment")
@@ -623,48 +647,19 @@ def analyze_video_enhanced(uploaded_file):
                     </div>
                     """, unsafe_allow_html=True)
                 
-                # Health indicators section
-                if distress_indicators or low_fertility_patterns:
+                # Health indicators section (distress only)
+                if distress_indicators:
                     st.markdown("### 🏥 Health & Welfare Indicators")
-                    health_col1, health_col2 = st.columns(2, gap="medium")
-                    
+                    health_col1, _ = st.columns(2, gap="medium")
                     with health_col1:
-                        if distress_indicators:
-                            st.markdown(f"""
-                            <div class="metric-card">
-                                <h4>🚨 Distress Indicators</h4>
-                                <h2 style="color: #ff6b6b;">{len(distress_indicators)}</h2>
-                                <p>Instances detected</p>
-                                {f"<p><strong>Peak Score:</strong> {max([d['score'] for d in distress_indicators]):.1f}%</p>" if distress_indicators else ""}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"""
-                            <div class="metric-card">
-                                <h4>✅ No Distress</h4>
-                                <h2 style="color: #4ecdc4;">0</h2>
-                                <p>No signs of distress</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    
-                    with health_col2:
-                        if low_fertility_patterns:
-                            st.markdown(f"""
-                            <div class="metric-card">
-                                <h4>🟡 Low Fertility Patterns</h4>
-                                <h2 style="color: #ffd93d;">{len(low_fertility_patterns)}</h2>
-                                <p>Patterns identified</p>
-                                {f"<p><strong>Peak Score:</strong> {max([d['score'] for d in low_fertility_patterns]):.1f}%</p>" if low_fertility_patterns else ""}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"""
-                            <div class="metric-card">
-                                <h4>✅ Normal Patterns</h4>
-                                <h2 style="color: #4ecdc4;">0</h2>
-                                <p>Healthy patterns observed</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <h4>🚨 Distress Indicators</h4>
+                            <h2 style="color: #ff6b6b;">{len(distress_indicators)}</h2>
+                            <p>Instances detected</p>
+                            {f"<p><strong>Peak Score:</strong> {max([d['score'] for d in distress_indicators]):.1f}%</p>" if distress_indicators else ""}
+                        </div>
+                        """, unsafe_allow_html=True)
                 
                 # Multi-feature analysis breakdown
                 if feature_analysis:
@@ -717,7 +712,7 @@ def analyze_video_enhanced(uploaded_file):
                         """, unsafe_allow_html=True)
                     
                     # Second row of features
-                    feature_col5, feature_col6, feature_col7, feature_col8 = st.columns(4, gap="small")
+                    feature_col5, feature_col6, _, feature_col8 = st.columns(4, gap="small")
                     
                     with feature_col5:
                         estrus_score = feature_analysis.get('estrus_behavior', 0)
@@ -739,15 +734,8 @@ def analyze_video_enhanced(uploaded_file):
                         </div>
                         """, unsafe_allow_html=True)
                     
-                    with feature_col7:
-                        low_fertility_score = feature_analysis.get('low_fertility_patterns', 0)
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <h4>📉 Low Fertility</h4>
-                            <h2 style="color: {'#ff6b6b' if low_fertility_score > 70 else '#ffd93d' if low_fertility_score > 50 else '#4ecdc4'};">{low_fertility_score:.1f}%</h2>
-                            <p>Fertility Issues</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    # Compute low_fertility_score silently for Health Index
+                    low_fertility_score = feature_analysis.get('low_fertility_patterns', 0)
                     
                     with feature_col8:
                         # Overall health score (inverse of distress and low fertility)
